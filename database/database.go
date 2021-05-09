@@ -28,15 +28,15 @@ func loadGenesis(genFilePath string) (*State, error) {
 	return &genesisState, nil
 }
 
-func NewStateFromDisk() (*State, Snapshot, error) {
+func NewStateFromDisk() (*State, Hash, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, Snapshot{}, err
+		return nil, Hash{}, err
 	}
 	genFilePath := filepath.Join(cwd, "database", "disk", "genesis.json")
 	gen, err := loadGenesis(genFilePath)
 	if err != nil {
-		return nil, Snapshot{}, err
+		return nil, Hash{}, err
 	}
 
 	balances := make(map[Account]uint)
@@ -44,32 +44,31 @@ func NewStateFromDisk() (*State, Snapshot, error) {
 		balances[account] = balance
 	}
 
-	txDbFilePath := filepath.Join(cwd, "database", "disk", "tx.db")
+	txDbFilePath := filepath.Join(cwd, "database", "disk", "block.db")
 	f, err := os.OpenFile(txDbFilePath, os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
-		return nil, Snapshot{}, err
+		return nil, Hash{}, err
 	}
 
 	scanner := bufio.NewScanner(f)
-	state := &State{balances, make([]Tx, 0), f, Snapshot{}}
+	state := &State{balances, make([]Tx, 0), f, Hash{}}
 
 	for scanner.Scan() {
 		if err := scanner.Err(); err != nil {
-			return nil, Snapshot{}, err
+			return nil, Hash{}, err
 		}
 
-		var tx Tx
-		json.Unmarshal(scanner.Bytes(), &tx)
+		var blockFs BlockFs
+		json.Unmarshal(scanner.Bytes(), &blockFs)
 
-		if err := state.apply(tx); err != nil {
-			return nil, Snapshot{}, err
+		for _, tx := range blockFs.Block.TXs {
+			if err := state.apply(tx); err != nil {
+				return nil, Hash{}, err
+			}
 		}
+
+		state.prevHash = blockFs.Hash
 	}
 
-	err = state.doSnapshot()
-	if err != nil {
-		return nil, Snapshot{}, err
-	}
-
-	return state, state.snapshot, nil
+	return state, state.prevHash, nil
 }

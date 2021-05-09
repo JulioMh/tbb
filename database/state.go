@@ -1,27 +1,24 @@
 package database
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"time"
 )
-
-type Snapshot [32]byte
 
 type State struct {
 	Balances  map[Account]uint
 	txMempool []Tx
 	dbFile    *os.File
-	snapshot  Snapshot
+	prevHash  Hash
 }
 
 func (s *State) Close() {
 	s.dbFile.Close()
 }
 
-func (s *State) Add(tx Tx) error {
+func (s *State) AddTx(tx Tx) error {
 	if err := s.apply(tx); err != nil {
 		return err
 	}
@@ -30,17 +27,13 @@ func (s *State) Add(tx Tx) error {
 	return nil
 }
 
-func (s *State) doSnapshot() error {
-	_, err := s.dbFile.Seek(0, 0)
-	if err != nil {
-		return err
+func (s *State) AddBlock(block Block) error {
+	for _, tx := range block.TXs {
+		err := s.AddTx(tx)
+		if err != nil {
+			return err
+		}
 	}
-
-	txsData, err := ioutil.ReadAll(s.dbFile)
-	if err != nil {
-		return err
-	}
-	s.snapshot = Snapshot(sha256.Sum256(txsData))
 
 	return nil
 }
@@ -58,26 +51,33 @@ func (s State) apply(tx Tx) error {
 	return nil
 }
 
-func (s *State) Persist() (Snapshot, error) {
-	mempool := make([]Tx, len(s.txMempool))
-	copy(mempool, s.txMempool)
-
-	for _, tx := range s.txMempool {
-		txJson, err := json.Marshal(tx)
-		if err != nil {
-			return Snapshot{}, err
-		}
-		fmt.Printf("Persisting new TX to disk:\n")
-		fmt.Printf("\t%s\n\n", txJson)
-		if _, err := s.dbFile.Write(append(txJson, '\n')); err != nil {
-			return Snapshot{}, err
-		}
-		err = s.doSnapshot()
-		if err != nil {
-			return Snapshot{}, err
-		}
-
-		s.txMempool = s.txMempool[1:]
+func (s *State) Persist() (Hash, error) {
+	block := NewBlock(
+		s.prevHash,
+		uint64(time.Now().Unix()),
+		s.txMempool,
+	)
+	blockHash, err := block.Hash()
+	if err != nil {
+		return Hash{}, err
 	}
-	return s.snapshot, nil
+
+	blockFs := BlockFs{blockHash, block}
+
+	blockFsJson, err := json.Marshal(blockFs)
+	if err != nil {
+		return Hash{}, err
+	}
+
+	fmt.Printf("Persisting new Block to disk:\n")
+	fmt.Printf("\t%s\n", blockFsJson)
+
+	_, err = s.dbFile.Write(append(blockFsJson, '\n'))
+	if err != nil {
+		return Hash{}, err
+	}
+	s.prevHash = blockHash
+	s.txMempool = []Tx{}
+
+	return s.prevHash, nil
 }
