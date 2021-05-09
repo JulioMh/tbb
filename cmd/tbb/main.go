@@ -7,14 +7,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var flagDataDir string = "datadir"
+const flagDataDir string = "datadir"
 
 func incorrectUsageErr() error {
 	return fmt.Errorf("incorrect usage")
 }
 
 func addDefaultRequiredFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().String(
+	cmd.Flags().String(
 		flagDataDir,
 		"",
 		"Absolute path where all data will/is stored",
@@ -36,7 +36,8 @@ func main() {
 	addDefaultRequiredFlags(tbbCmd)
 	tbbCmd.AddCommand(versionCmd)
 	tbbCmd.AddCommand(balancesCmd())
-	tbbCmd.AddCommand(txCmd())
+	// tbbCmd.AddCommand(txCmd())
+	tbbCmd.AddCommand(runCmd())
 
 	err := tbbCmd.Execute()
 	if err != nil {

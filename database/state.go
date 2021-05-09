@@ -18,6 +18,10 @@ func (s *State) Close() {
 	s.dbFile.Close()
 }
 
+func (s *State) LatestBlockHash() Hash {
+	return s.prevHash
+}
+
 func (s *State) AddTx(tx Tx) error {
 	if err := s.apply(tx); err != nil {
 		return err
