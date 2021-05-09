@@ -8,7 +8,7 @@ import (
 )
 
 type State struct {
-	Balances  map[Account]uint
+	Balances  Balances
 	txMempool []Tx
 	dbFile    *os.File
 	prevHash  Hash

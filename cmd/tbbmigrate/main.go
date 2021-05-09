@@ -8,8 +8,19 @@ import (
 	"tbb_blockchain/database"
 )
 
+func badArgs() {
+	fmt.Printf("You must add --datadir flag -\tAbsolute path where all data will/is stored")
+	os.Exit(1)
+}
+
 func main() {
-	state, _, err := database.NewStateFromDisk()
+	if len(os.Args[1:]) == 0 {
+		badArgs()
+	}
+	if os.Args[1] != "--datadir" {
+		badArgs()
+	}
+	state, _, err := database.NewStateFromDisk(os.Args[2])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

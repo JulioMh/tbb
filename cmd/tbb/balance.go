@@ -23,9 +23,10 @@ func balancesCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all balance",
 		Run: func(cmd *cobra.Command, args []string) {
-			state, lastSnapshot, err := database.NewStateFromDisk()
+			state, lastSnapshot, err := database.NewStateFromDisk(getDataDirFromCmd(cmd))
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 			defer state.Close()
 

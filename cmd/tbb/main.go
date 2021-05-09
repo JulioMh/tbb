@@ -7,8 +7,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flagDataDir string = "datadir"
+
 func incorrectUsageErr() error {
-	return fmt.Errorf("")
+	return fmt.Errorf("incorrect usage")
+}
+
+func addDefaultRequiredFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().String(
+		flagDataDir,
+		"",
+		"Absolute path where all data will/is stored",
+	)
+	cmd.MarkFlagRequired(flagDataDir)
+}
+
+func getDataDirFromCmd(cmd *cobra.Command) string {
+	dataDir, _ := cmd.Flags().GetString(flagDataDir)
+	return dataDir
 }
 
 func main() {
@@ -17,7 +33,7 @@ func main() {
 		Short: "The Blockchain Bar CLI",
 		Run:   func(cmd *cobra.Command, args []string) {},
 	}
-
+	addDefaultRequiredFlags(tbbCmd)
 	tbbCmd.AddCommand(versionCmd)
 	tbbCmd.AddCommand(balancesCmd())
 	tbbCmd.AddCommand(txCmd())

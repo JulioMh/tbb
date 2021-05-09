@@ -5,8 +5,16 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"tbb_blockchain/fs"
+
+	"time"
 )
+
+type Genesis struct {
+	Genesis_time time.Time `json:"genesis_time"`
+	Chain_id     string    `json:"chain_id"`
+	Balances     Balances  `json:"balances"`
+}
 
 func loadGenesis(genFilePath string) (*State, error) {
 	// Read genesis file
@@ -15,12 +23,12 @@ func loadGenesis(genFilePath string) (*State, error) {
 		return nil, err
 	}
 	// Parse to map[string]interface{}
-	var genesis map[string]interface{}
+	var genesis Genesis
 	json.Unmarshal(f, &genesis)
 	// Create balances from genesis
 	genesisBalances := make(map[Account]uint)
-	for account, balance := range genesis["balances"].(map[string]interface{}) {
-		genesisBalances[Account(account)] = uint(balance.(float64))
+	for account, balance := range genesis.Balances {
+		genesisBalances[Account(account)] = balance
 	}
 	// Create first state
 	var genesisState State
@@ -28,12 +36,12 @@ func loadGenesis(genFilePath string) (*State, error) {
 	return &genesisState, nil
 }
 
-func NewStateFromDisk() (*State, Hash, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
+func NewStateFromDisk(dataDir string) (*State, Hash, error) {
+	if err := fs.InitDataDirIfNotExists(dataDir); err != nil {
 		return nil, Hash{}, err
 	}
-	genFilePath := filepath.Join(cwd, "database", "disk", "genesis.json")
+
+	genFilePath := fs.GetGenesisJsonFilePath(dataDir)
 	gen, err := loadGenesis(genFilePath)
 	if err != nil {
 		return nil, Hash{}, err
@@ -44,7 +52,7 @@ func NewStateFromDisk() (*State, Hash, error) {
 		balances[account] = balance
 	}
 
-	txDbFilePath := filepath.Join(cwd, "database", "disk", "block.db")
+	txDbFilePath := fs.GetBlocksDbJsonFilePath(dataDir)
 	f, err := os.OpenFile(txDbFilePath, os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, Hash{}, err
